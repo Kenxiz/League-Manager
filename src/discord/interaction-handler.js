@@ -211,11 +211,11 @@ export function createInteractionHandler({ app, commands }) {
     if (interaction.customId === 'admin:run_setup') {
       const ctx = buildContext(interaction, app);
       app.services.permissions.assert(ctx.actor, ctx.settings, Permission.MANAGE_SETTINGS);
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       const setupResult = await runGuildSetup(interaction.guild, app.services);
 
-      await interaction.reply({
+      await interaction.editReply({
         content: `✅ Automatic setup verified! \`@Suspended\` role: <@&${setupResult.suspendedRole?.id}>`,
-        flags: MessageFlags.Ephemeral,
       });
       return;
     }
@@ -342,6 +342,46 @@ export function createInteractionHandler({ app, commands }) {
             .setFooter({ text: `Rejected by @${interaction.user.username}` });
 
       await interaction.update({ embeds: [updatedEmbed], components: [] });
+      return;
+    }
+
+    if (interaction.customId.startsWith('verify_check:')) {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+      try {
+        const result = await app.services.verification.verifyChallenge({
+          userDiscordId: interaction.user.id,
+          robloxApi: app.integrations?.robloxApi,
+        });
+
+        await interaction.editReply({
+          content: `✅ **Verification Confirmed!** Your Discord account is now officially linked to Roblox player **${result.robloxUser.name}** (\`${result.link.robloxId}\`). You can now remove the verification code from your Roblox profile.`,
+        });
+
+        if (interaction.message?.editable) {
+          try {
+            const oldEmbed = interaction.message.embeds?.[0];
+            const updatedEmbed = oldEmbed
+              ? EmbedBuilder.from(oldEmbed)
+                  .setColor(0x57f287)
+                  .setTitle('✅ Roblox Account Verified')
+                  .setDescription(
+                    `Your Discord account is officially verified with **[${result.robloxUser.name}](https://www.roblox.com/users/${result.link.robloxId}/profile)**!\n\n` +
+                    `You can now sign with college football teams and join rosters.`,
+                  )
+                  .setFooter({ text: 'League Manager • Verified via Roblox API' })
+                  .setTimestamp()
+              : null;
+            await interaction.message.edit({
+              embeds: updatedEmbed ? [updatedEmbed] : interaction.message.embeds,
+              components: [],
+            });
+          } catch {}
+        }
+      } catch (err) {
+        await interaction.editReply({
+          content: `❌ ${err.message || 'Verification failed. Please check your Roblox bio and try again.'}`,
+        });
+      }
       return;
     }
   }

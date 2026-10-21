@@ -1,81 +1,109 @@
 import {
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
   EmbedBuilder,
   SlashCommandBuilder,
   InteractionContextType,
 } from 'discord.js';
+import { ValidationError } from '../../utils/errors.js';
+import { buildContext } from '../context.js';
 
 export default {
   data: new SlashCommandBuilder()
     .setName('verify')
-    .setDescription('Link your Roblox account to your Discord account')
+    .setDescription('Verify and link your Roblox account using your Roblox profile About section')
     .setContexts(InteractionContextType.Guild)
     .addStringOption((opt) =>
       opt
         .setName('roblox_username')
         .setDescription('Your exact Roblox username')
         .setRequired(true),
-    )
-    .addStringOption((opt) =>
-      opt
-        .setName('roblox_id')
-        .setDescription('Your numeric Roblox User ID (optional, found in your profile URL)')
-        .setRequired(false),
     ),
 
   async execute(interaction, app) {
-    const username = interaction.options.getString('roblox_username', true).trim();
-    let robloxId = interaction.options.getString('roblox_id')?.trim();
+    const ctx = buildContext(interaction, app);
+    await interaction.deferReply();
 
-    // If robloxId not provided, query Roblox users API if http is available, or use hash/placeholder
-    if (!robloxId) {
-      if (/^\d{5,12}$/.test(username)) {
-        robloxId = username;
+    const usernameInput = interaction.options.getString('roblox_username', true).trim();
+    const robloxApi = app.integrations?.robloxApi;
+
+    // 1. Resolve Roblox account via Roblox's Users API
+    let robloxUser = null;
+    if (robloxApi) {
+      try {
+        if (/^\d{5,12}$/.test(usernameInput)) {
+          robloxUser = await robloxApi.getUserById(usernameInput);
+        } else {
+          robloxUser = await robloxApi.getUserByUsername(usernameInput);
+        }
+      } catch (err) {
+        app.logger?.warn({ err, username: usernameInput }, 'roblox api lookup error');
+      }
+    }
+
+    // Fallback if Roblox API is unreachable or mocked in test environment
+    if (!robloxUser) {
+      if (/^\d{5,12}$/.test(usernameInput)) {
+        robloxUser = { id: Number(usernameInput), name: `Player_${usernameInput}`, displayName: `Player_${usernameInput}` };
       } else {
-        // Query Roblox API
-        try {
-          const res = await fetch('https://users.roblox.com/v1/usernames/users', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ usernames: [username], excludeBannedUsers: false }),
-          });
-          if (res.ok) {
-            const data = await res.json();
-            if (data.data && data.data.length > 0) {
-              robloxId = String(data.data[0].id);
-            }
-          }
-        } catch {}
+        throw new ValidationError(
+          `Could not find a Roblox account with username "**${usernameInput}**". Please check spelling on roblox.com.`,
+        );
       }
     }
 
-    if (!robloxId) {
-      // Deterministic fallback ID based on username for test/offline environments
-      let hash = 0;
-      for (let i = 0; i < username.length; i++) {
-        hash = (hash << 5) - hash + username.charCodeAt(i);
-        hash |= 0;
-      }
-      robloxId = String(Math.abs(hash) + 1000000);
+    // 2. Fetch avatar headshot from Roblox Thumbnails API
+    let avatarUrl = null;
+    if (robloxApi) {
+      avatarUrl = await robloxApi.getUserHeadshot(robloxUser.id, '150x150');
     }
 
-    const linked = app.services.verification.link({
+    // 3. Generate verification challenge code
+    const challenge = app.services.verification.createChallenge({
       userDiscordId: interaction.user.id,
-      robloxUsername: username,
-      robloxId,
+      robloxUsername: robloxUser.name,
+      robloxId: robloxUser.id,
     });
 
+    const profileUrl = `https://www.roblox.com/users/${robloxUser.id}/profile`;
+
     const embed = new EmbedBuilder()
-      .setColor(0x57f287) // Green
-      .setTitle('✅ Roblox Verification Successful')
-      .setDescription(`Your Discord account has been successfully linked to **${username}**!`)
-      .addFields(
-        { name: 'Discord User', value: `<@${interaction.user.id}>`, inline: true },
-        { name: 'Roblox Username', value: `**[${username}](https://www.roblox.com/users/${robloxId}/profile)**`, inline: true },
-        { name: 'Roblox ID', value: `\`${robloxId}\``, inline: true },
+      .setColor(0x5865f2) // Blurple
+      .setTitle('🔐 Roblox Account Verification')
+      .setDescription(
+        `To verify that you own **[${robloxUser.name}](${profileUrl})**, please paste this verification code into your Roblox profile **About / Bio** section:\n\n` +
+        `\`\`\`\n${challenge.code}\n\`\`\`\n` +
+        `**Steps to verify:**\n` +
+        `1. Go to your [Roblox Profile](${profileUrl})\n` +
+        `2. Paste \`${challenge.code}\` into your **About** section and click Save\n` +
+        `3. Click the **Confirm Verification** button below.\n\n` +
+        `*(Once verified, you can safely remove the code from your profile.)*`,
       )
-      .setFooter({ text: 'You are now verified to sign with college teams.' })
+      .addFields(
+        { name: 'Roblox Username', value: `**[${robloxUser.name}](${profileUrl})**`, inline: true },
+        { name: 'Display Name', value: robloxUser.displayName || robloxUser.name, inline: true },
+        { name: 'Roblox ID', value: `\`${robloxUser.id}\``, inline: true },
+      )
+      .setFooter({ text: 'League Manager • Verification code expires in 15 minutes' })
       .setTimestamp();
 
-    await interaction.reply({ embeds: [embed] });
+    if (avatarUrl) {
+      embed.setThumbnail(avatarUrl);
+    }
+
+    const row = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`verify_check:${robloxUser.id}`)
+        .setLabel('Confirm Verification')
+        .setEmoji('✅')
+        .setStyle(ButtonStyle.Success),
+      new ButtonBuilder()
+        .setLabel('Open Roblox Profile')
+        .setStyle(ButtonStyle.Link)
+        .setURL(profileUrl),
+    );
+
+    await interaction.editReply({ embeds: [embed], components: [row] });
   },
 };

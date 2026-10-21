@@ -1,9 +1,7 @@
--- test file
-
 {
   "guildId": "123456789012345678",
   "guildName": "CFB League",
-  "updatedAt": 1792554523,
+  "updatedAt": 1792556736,
   "channels": {
     "categoryId": null,
     "scheduleChannelId": null,

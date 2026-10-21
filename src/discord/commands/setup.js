@@ -10,23 +10,25 @@ import { runGuildSetup } from '../setup-helper.js';
 export default {
   data: new SlashCommandBuilder()
     .setName('setup')
-    .setDescription('Run automatic setup for LeagueBot (creates @Suspended role & checks guild configuration)')
+    .setDescription('Run automatic setup for League Manager (creates core roles & channels)')
     .setContexts(InteractionContextType.Guild),
 
   async execute(interaction, app) {
     const ctx = buildContext(interaction, app);
     app.services.permissions.assert(ctx.actor, ctx.settings, Permission.MANAGE_SETTINGS);
 
+    // Defer reply immediately so Discord does not time out while creating channels & roles
+    await interaction.deferReply();
+
     const setupResult = await runGuildSetup(interaction.guild, app.services);
     const { roles, channels, settings } = setupResult;
 
     const embed = new EmbedBuilder()
       .setColor(0x5865f2) // Blurple
-      .setTitle('🏈 LeagueBot Automatic Setup Complete')
+      .setTitle('🏈 League Manager Setup Complete')
       .setDescription(
-        'Server channels and core roles have been created and configured automatically.\n' +
-        'All IDs and settings have been saved to the database and `data/guild-configs/`.\n\n' +
-        'ℹ️ **Team Roles Note**: 143 team roles were **not** created. You can select up to 20 initial teams from the web dashboard (and add more anytime).',
+        'Server channels and core roles have been created and configured automatically.\n\n' +
+        'ℹ️ **Team Roles Note**: 143 team roles were **not** created. You can select up to 20 initial teams from the dashboard (and add more anytime).',
       )
       .addFields(
         {
@@ -61,10 +63,9 @@ export default {
           inline: true,
         },
       )
-      .setFooter({ text: 'All IDs and configurations are stored in data/guild-configs/' })
+      .setFooter({ text: 'League Manager • Automatic Setup' })
       .setTimestamp();
 
-    await interaction.reply({ embeds: [embed] });
-
+    await interaction.editReply({ embeds: [embed] });
   },
 };

@@ -84,7 +84,7 @@ export function buildHelpEmbed(category = 'overview') {
             value: 'Link your Roblox account to your Discord user profile for league eligibility.',
           },
         )
-        .setFooter({ text: 'LeagueBot • Player Management' })
+        .setFooter({ text: 'League Manager • Player Management' })
         .setTimestamp();
 
     case 'scheduling':
@@ -123,7 +123,7 @@ export function buildHelpEmbed(category = 'overview') {
             value: 'View the live league standings table sorted by Win %, Differential, and Points For.',
           },
         )
-        .setFooter({ text: 'LeagueBot • Scheduling & Competition' })
+        .setFooter({ text: 'League Manager • Scheduling & Competition' })
         .setTimestamp();
 
     case 'captains':
@@ -144,7 +144,7 @@ export function buildHelpEmbed(category = 'overview') {
             value: 'Remove a player captain designation.',
           },
         )
-        .setFooter({ text: 'LeagueBot • Team Leadership' })
+        .setFooter({ text: 'League Manager • Team Leadership' })
         .setTimestamp();
 
     case 'admin':
@@ -175,26 +175,26 @@ export function buildHelpEmbed(category = 'overview') {
             name: '🚀 `/setup`',
             value:
               'Automated server setup. Automatically provisions:\n' +
-              '• Channels: `#league-schedule`, `#transactions`, `#league-logs` under `🏈 LEAGUE BOT` category.\n' +
+              '• Channels: `#league-schedule`, `#transactions`, `#league-logs` under `🏈 LEAGUE MANAGER` category.\n' +
               '• Core roles: `@Suspended`, `@Commissioner`, `@Athletic Director`, `@Coach`, `@Free Agent`.\n' +
               '• Assigns `@Free Agent` to all existing members.\n' +
-              '• Saves all channel and role IDs to SQLite settings and `data/guild-configs/<guildId>.json`.',
+              '• Automatically saves and configures all roles and channels for the league.',
           },
           {
             name: '🔨 `/ban` & `/unban` *(Bot Developers Only)*',
             value: 'Strict developer moderation commands reserved for bot development team.',
           },
         )
-        .setFooter({ text: 'LeagueBot • Staff Administration' })
+        .setFooter({ text: 'League Manager • Staff Administration' })
         .setTimestamp();
 
     case 'overview':
     default:
       return new EmbedBuilder()
         .setColor(0x5865f2)
-        .setTitle('🏈 College Football LeagueBot — Command Guide')
+        .setTitle('🏈 College Football League Manager — Command Guide')
         .setDescription(
-          'Welcome to **LeagueBot**, the all-in-one Discord bot built for College Football leagues on Roblox!\n\n' +
+          'Welcome to **League Manager**, the all-in-one Discord bot built for College Football leagues on Roblox!\n\n' +
           '**Key Features:**\n' +
           '• **Automated Server Setup**: Run `/setup` to instantly create categories, channels, and core roles.\n' +
           '• **Roster & Signings**: Self-signing, AD sign authority, direct `/transfer`, and `@Free Agent` automation.\n' +
@@ -235,7 +235,7 @@ export function buildHelpComponents(selectedCategory = 'overview') {
 export default {
   data: new SlashCommandBuilder()
     .setName('help')
-    .setDescription('Comprehensive guide and documentation for all LeagueBot commands')
+    .setDescription('Comprehensive guide and documentation for all League Manager commands')
     .addStringOption((opt) =>
       opt
         .setName('category')

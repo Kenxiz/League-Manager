@@ -35,7 +35,7 @@ export default {
   async execute(interaction, app) {
     if (!DEVELOPER_IDS.includes(interaction.user.id)) {
       throw new PermissionError(
-        `Banning is strictly reserved for LeagueBot developers (${DEVELOPER_IDS.join(', ')}). League staff and commissioners must use /suspend instead.`,
+        `Banning is strictly reserved for League Manager developers (${DEVELOPER_IDS.join(', ')}). League staff and commissioners must use /suspend instead.`,
       );
     }
 

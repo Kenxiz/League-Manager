@@ -13,13 +13,13 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 async function main() {
   const config = loadConfig();
   const logger = createLogger({ level: config.logLevel, pretty: !config.isProd });
-  logger.info({ env: config.env }, 'starting leaguebot');
+  logger.info({ env: config.env }, 'starting league manager');
 
   const services = createServices({ config, logger });
   const integrations = createIntegrations({ config, logger });
   const commands = await loadCommands();
   const client = createClient();
-  const api = createApiServer({ services, config, logger });
+  const api = createApiServer({ services, config, logger, integrations });
 
   /** Shared application context handed to every command/event. */
   const app = { config, logger, services, integrations, client, commands, api };

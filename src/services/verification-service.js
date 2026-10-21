@@ -9,6 +9,7 @@ export class VerificationService {
     this.audit = audit;
     this.http = http;
     this.clock = clock;
+    this.challenges = new Map(); // userDiscordId -> { code, robloxUsername, robloxId, expiresAt }
 
     this.q = {
       get: db.prepare('SELECT roblox_id, roblox_username, verified_at FROM roblox_links WHERE user_id = ?'),
@@ -51,6 +52,8 @@ export class VerificationService {
 
     const now = this.clock();
     this.q.upsert.run(userId, String(robloxId), cleanUsername, now);
+    this.challenges.delete(userDiscordId);
+
     return {
       userDiscordId,
       robloxId: String(robloxId),
@@ -64,13 +67,79 @@ export class VerificationService {
     const existing = this.q.get.get(userId);
     if (!existing) throw new NotFoundError('No Roblox account is linked for that user.');
     this.q.delete.run(userId);
+    this.challenges.delete(userDiscordId);
     return { userDiscordId, unlinked: true };
+  }
+
+  // --- Verification Challenge Workflow ---
+
+  createChallenge({ userDiscordId, robloxUsername, robloxId }) {
+    const now = this.clock();
+    const randomStr = Math.random().toString(36).substring(2, 8).toUpperCase();
+    const code = `LEAGUEBOT-${randomStr}`;
+    const expiresAt = now + 900; // 15 minutes
+
+    const challenge = {
+      code,
+      robloxUsername,
+      robloxId: String(robloxId),
+      createdAt: now,
+      expiresAt,
+    };
+
+    this.challenges.set(userDiscordId, challenge);
+    return challenge;
+  }
+
+  getChallenge(userDiscordId) {
+    const challenge = this.challenges.get(userDiscordId);
+    if (!challenge) return null;
+    if (this.clock() > challenge.expiresAt) {
+      this.challenges.delete(userDiscordId);
+      return null;
+    }
+    return challenge;
+  }
+
+  async verifyChallenge({ userDiscordId, robloxApi }) {
+    const challenge = this.getChallenge(userDiscordId);
+    if (!challenge) {
+      throw new ValidationError('No active verification challenge found. Please run /verify first to get a code.');
+    }
+
+    if (!robloxApi) {
+      throw new ValidationError('Roblox API client is not configured.');
+    }
+
+    const profile = await robloxApi.getUserById(challenge.robloxId);
+    if (!profile) {
+      throw new NotFoundError('Could not fetch Roblox profile details.');
+    }
+
+    const description = (profile.description || '').toLowerCase();
+    const targetCode = challenge.code.toLowerCase();
+
+    if (!description.includes(targetCode)) {
+      throw new ValidationError(
+        `Verification code not found in Roblox profile. Please paste "${challenge.code}" into your Roblox 'About' section, save your profile, and try again.`,
+      );
+    }
+
+    // Code matched! Link account permanently
+    const link = this.link({
+      userDiscordId,
+      robloxId: challenge.robloxId,
+      robloxUsername: profile.name,
+    });
+
+    return {
+      link,
+      robloxUser: profile,
+    };
   }
 
   /**
    * Checks if a user is verified and optionally checks Roblox Group membership if groupId > 0.
-   * If http is configured to allow groups.roblox.com, it will query Roblox API; otherwise
-   * verifies account presence.
    */
   async checkVerification(userDiscordId, { requiredGroupId = 0 } = {}) {
     const link = this.getLink(userDiscordId);

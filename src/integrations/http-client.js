@@ -13,7 +13,7 @@ export class HttpClient {
   /**
    * @param {{ allowedHosts: string[], timeoutMs?: number, maxRetries?: number, logger?: any, fetchImpl?: typeof fetch, userAgent?: string }} opts
    */
-  constructor({ allowedHosts, timeoutMs = 10_000, maxRetries = 3, logger, fetchImpl = fetch, userAgent = 'leaguebot/0.1' }) {
+  constructor({ allowedHosts, timeoutMs = 10_000, maxRetries = 3, logger, fetchImpl = fetch, userAgent = 'leaguemanager/0.1' }) {
     this.allowedHosts = new Set(allowedHosts);
     this.timeoutMs = timeoutMs;
     this.maxRetries = maxRetries;
@@ -48,6 +48,43 @@ export class HttpClient {
       }
     }
     this.logger?.warn({ err: lastErr, host: u.hostname }, 'external request failed');
+    throw new ExternalServiceError(undefined, { cause: lastErr });
+  }
+
+  /** @returns {Promise<any>} parsed JSON body for POST request */
+  async postJson(url, body, { headers = {} } = {}) {
+    const u = new URL(url);
+    if (u.protocol !== 'https:') throw new ExternalServiceError('Refusing non-HTTPS request.', { code: 'EXTERNAL_BLOCKED' });
+    if (!this.allowedHosts.has(u.hostname)) {
+      throw new ExternalServiceError('Refusing request to a host that is not allow-listed.', { code: 'EXTERNAL_BLOCKED' });
+    }
+
+    const payload = typeof body === 'string' ? body : JSON.stringify(body);
+    let lastErr;
+    for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
+      try {
+        const res = await this.fetch(u, {
+          method: 'POST',
+          headers: {
+            accept: 'application/json',
+            'content-type': 'application/json',
+            'user-agent': this.userAgent,
+            ...headers,
+          },
+          body: payload,
+          signal: AbortSignal.timeout(this.timeoutMs),
+          redirect: 'error',
+        });
+        if (res.ok) return await this.#readJson(res);
+        lastErr = new Error(`HTTP ${res.status} from ${u.hostname}`);
+        if (!RETRYABLE.has(res.status)) break;
+        if (attempt < this.maxRetries) await sleep(this.#backoff(attempt, res.headers.get('retry-after')));
+      } catch (err) {
+        lastErr = err;
+        if (attempt < this.maxRetries) await sleep(this.#backoff(attempt));
+      }
+    }
+    this.logger?.warn({ err: lastErr, host: u.hostname }, 'external POST request failed');
     throw new ExternalServiceError(undefined, { cause: lastErr });
   }
 

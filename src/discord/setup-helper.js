@@ -41,12 +41,15 @@ async function ensureRole(guild, roleName, color, reason, permissions = []) {
   if (existing) return existing;
 
   try {
-    return await guild.roles.create({
+    const roleOptions = {
       name: roleName,
-      color,
       reason,
       permissions,
-    });
+    };
+    if (color !== undefined && color !== null) {
+      roleOptions.colors = { primaryColor: color };
+    }
+    return await guild.roles.create(roleOptions);
   } catch (err) {
     return null;
   }
@@ -79,7 +82,7 @@ export async function ensureSuspendedRole(guild, services) {
     guild,
     'Suspended',
     0x80848e,
-    'Automatic setup: LeagueBot Suspended role',
+    'Automatic setup: League Manager Suspended role',
     [],
   );
 
@@ -107,28 +110,28 @@ export async function runGuildSetup(guild, services) {
     guild,
     'Commissioner',
     0xed4245,
-    'Automatic setup: LeagueBot Commissioner role',
+    'Automatic setup: League Manager Commissioner role',
   );
 
   const athleticDirectorRole = await ensureRole(
     guild,
     'Athletic Director',
     0xfee75c,
-    'Automatic setup: LeagueBot Athletic Director role (team coordination & schedule confirmation)',
+    'Automatic setup: League Manager Athletic Director role (team coordination & schedule confirmation)',
   );
 
   const coachRole = await ensureRole(
     guild,
     'Coach',
     0x5865f2,
-    'Automatic setup: LeagueBot Coach role',
+    'Automatic setup: League Manager Coach role',
   );
 
   const freeAgentRole = await ensureRole(
     guild,
     'Free Agent',
     0x3498db,
-    'Automatic setup: LeagueBot Free Agent role (assigned to all players)',
+    'Automatic setup: League Manager Free Agent role (assigned to all players)',
   );
 
   // --- Assign Free Agent role to all existing server members ---
@@ -166,17 +169,17 @@ export async function runGuildSetup(guild, services) {
   let logChannel = null;
 
   if (guild.channels) {
-    // Category: "🏈 LEAGUE BOT"
+    // Category: "🏈 LEAGUE MANAGER"
     category = findInCache(
       guild.channels.cache,
-      (c) => c.type === ChannelType.GuildCategory && c.name?.toLowerCase().includes('league bot'),
+      (c) => c.type === ChannelType.GuildCategory && (c.name?.toLowerCase().includes('league manager') || c.name?.toLowerCase().includes('league bot')),
     );
     if (!category && typeof guild.channels.create === 'function') {
       try {
         category = await guild.channels.create({
-          name: '🏈 LEAGUE BOT',
+          name: '🏈 LEAGUE MANAGER',
           type: ChannelType.GuildCategory,
-          reason: 'Automatic setup: LeagueBot Category',
+          reason: 'Automatic setup: League Manager Category',
         });
       } catch {}
     }
@@ -194,7 +197,7 @@ export async function runGuildSetup(guild, services) {
           type: ChannelType.GuildText,
           parent: parentId,
           topic: 'Official match schedules, game announcements, and team coordination.',
-          reason: 'Automatic setup: LeagueBot Schedule channel',
+          reason: 'Automatic setup: League Manager Schedule channel',
         });
       } catch {}
     }
@@ -210,7 +213,7 @@ export async function runGuildSetup(guild, services) {
           type: ChannelType.GuildText,
           parent: parentId,
           topic: 'Official player signings, releases, and transfers.',
-          reason: 'Automatic setup: LeagueBot Transactions channel',
+          reason: 'Automatic setup: League Manager Transactions channel',
         });
       } catch {}
     }
@@ -240,7 +243,7 @@ export async function runGuildSetup(guild, services) {
           type: ChannelType.GuildText,
           parent: parentId,
           topic: 'League moderation, suspensions, and audit logs.',
-          reason: 'Automatic setup: LeagueBot Log channel',
+          reason: 'Automatic setup: League Manager Log channel',
           permissionOverwrites,
         });
       } catch {}
@@ -366,11 +369,15 @@ export async function selectInitialTeams({
       let role = findInCache(guild.roles.cache, (r) => r.name.toLowerCase() === team.name.toLowerCase());
       if (!role && typeof guild.roles.create === 'function') {
         try {
-          role = await guild.roles.create({
+          const roleOptions = {
             name: team.name,
-            color: team.colors?.primary ?? 0x5865f2,
             reason: `Dashboard initial team setup: ${team.fullName || team.name}`,
-          });
+          };
+          const primaryColor = team.colors?.primary ?? 0x5865f2;
+          if (primaryColor) {
+            roleOptions.colors = { primaryColor };
+          }
+          role = await guild.roles.create(roleOptions);
         } catch {}
       }
       if (role) {
@@ -428,11 +435,15 @@ export async function addGuildTeam({
     let role = findInCache(guild.roles.cache, (r) => r.name.toLowerCase() === team.name.toLowerCase());
     if (!role && typeof guild.roles.create === 'function') {
       try {
-        role = await guild.roles.create({
+        const roleOptions = {
           name: team.name,
-          color: team.colors?.primary ?? 0x5865f2,
           reason: `Dashboard added team: ${team.fullName || team.name}`,
-        });
+        };
+        const primaryColor = team.colors?.primary ?? 0x5865f2;
+        if (primaryColor) {
+          roleOptions.colors = { primaryColor };
+        }
+        role = await guild.roles.create(roleOptions);
       } catch {}
     }
     if (role) {

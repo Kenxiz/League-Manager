@@ -227,12 +227,12 @@ test('developer-only bans: ban and unban commands reject non-developers and allo
     // Should reject non-developer
     await assert.rejects(
       async () => await banCommand.execute(nonDevInteraction, { services: s, config: env.config }),
-      (err) => err instanceof PermissionError && err.message.includes('strictly reserved for LeagueBot developers'),
+      (err) => err instanceof PermissionError && err.message.includes('strictly reserved for League Manager developers'),
     );
 
     await assert.rejects(
       async () => await unbanCommand.execute(nonDevInteraction, { services: s, config: env.config }),
-      (err) => err instanceof PermissionError && err.message.includes('strictly reserved for LeagueBot developers'),
+      (err) => err instanceof PermissionError && err.message.includes('strictly reserved for League Manager developers'),
     );
 
     // Mock developer interaction
