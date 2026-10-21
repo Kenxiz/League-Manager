@@ -103,3 +103,57 @@ export class LruCache {
     this.map.clear();
   }
 }
+
+/**
+ * Parses natural or numeric time input into unix seconds.
+ * Supports: unix timestamps, "today 8pm", "tomorrow 6:30pm", "in 2 hours", ISO date strings.
+ */
+export function parseTimeInput(input) {
+  if (!input || typeof input !== 'string') return null;
+  const s = input.trim().toLowerCase();
+
+  // 1. Raw Unix seconds or ms
+  if (/^\d{10}$/.test(s)) return Number(s);
+  if (/^\d{13}$/.test(s)) return Math.floor(Number(s) / 1000);
+
+  // 2. Relative offset: "in X hours", "in Y minutes"
+  const inMatch = s.match(/^in\s+(\d+)\s*(h|hr|hours?|m|min|minutes?)$/);
+  if (inMatch) {
+    const val = Number(inMatch[1]);
+    const unit = inMatch[2].startsWith('h') ? 3600 : 60;
+    return nowSec() + val * unit;
+  }
+
+  // 3. "today 8pm" / "tomorrow 6:30pm"
+  const now = new Date();
+  const baseDate = new Date(now);
+
+  const isToday = s.startsWith('today');
+  const isTomorrow = s.startsWith('tomorrow');
+
+  if (isTomorrow) {
+    baseDate.setDate(baseDate.getDate() + 1);
+  }
+
+  const timeMatch = s.match(/(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/);
+  if ((isToday || isTomorrow) && timeMatch) {
+    let hours = Number(timeMatch[1]);
+    const mins = timeMatch[2] ? Number(timeMatch[2]) : 0;
+    const meridian = timeMatch[3];
+
+    if (meridian === 'pm' && hours < 12) hours += 12;
+    if (meridian === 'am' && hours === 12) hours = 0;
+
+    baseDate.setHours(hours, mins, 0, 0);
+    return Math.floor(baseDate.getTime() / 1000);
+  }
+
+  // 4. Standard Date parsing fallback
+  const parsed = Date.parse(input);
+  if (!isNaN(parsed)) {
+    return Math.floor(parsed / 1000);
+  }
+
+  return null;
+}
+

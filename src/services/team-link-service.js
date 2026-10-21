@@ -216,6 +216,45 @@ export class TeamLinkService {
     }));
   }
 
+  /**
+   * Checks if an actor can manage/coordinate for a specific team
+   * (e.g. Athletic Director, team coach, or league commissioner/admin).
+   */
+  canManageTeam({ guildDiscordId, team, userDiscordId, memberRoleIds = [], settings = null }) {
+    const guildId = this.guilds.ensure(guildDiscordId);
+    const t = this.#team(team);
+
+    // 1. Appointed leadership for this team
+    try {
+      const captains = this.getCaptains(guildDiscordId, t.id);
+      const userCap = captains.find((c) => c.discordId === userDiscordId);
+      if (userCap && (userCap.role === 'director' || userCap.role === 'coach')) {
+        return true;
+      }
+    } catch (_) {}
+
+    // 2. Member roles matching Athletic Director roles configured in settings
+    if (settings?.athleticDirectorRoleIds?.length) {
+      if (memberRoleIds.some((r) => settings.athleticDirectorRoleIds.includes(r))) {
+        return true;
+      }
+    }
+
+    // 3. Member roles matching Commissioner or Admin roles
+    if (settings?.commissionerRoleIds?.length) {
+      if (memberRoleIds.some((r) => settings.commissionerRoleIds.includes(r))) {
+        return true;
+      }
+    }
+    if (settings?.adminRoleIds?.length) {
+      if (memberRoleIds.some((r) => settings.adminRoleIds.includes(r))) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
 
   // --- Player Positions & Jersey Numbers ---
 

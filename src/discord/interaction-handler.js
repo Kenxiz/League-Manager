@@ -223,17 +223,136 @@ export function createInteractionHandler({ app, commands }) {
     if (interaction.customId.startsWith('match_confirm:')) {
       const [, matchIdStr, side] = interaction.customId.split(':');
       const matchId = Number(matchIdStr);
-      const confirmed = app.services.schedule.confirmProposal({
+      const { match, fullyConfirmed } = app.services.schedule.confirmProposal({
         guildDiscordId: interaction.guildId,
         matchId,
-        userDiscordId: interaction.user.id,
+        confirmerDiscordId: interaction.user.id,
         side,
       });
 
       await interaction.reply({
-        content: `✅ ${side.toUpperCase()} team time confirmation recorded by <@${interaction.user.id}>!`,
+        content: fullyConfirmed
+          ? `✅ **Time Confirmed!** Both teams have confirmed and Match #${matchId} is officially locked in!`
+          : `✅ **${side.toUpperCase()}** team confirmation recorded! Waiting for the opposing Athletic Director to confirm.`,
         flags: MessageFlags.Ephemeral,
       });
+
+      if (fullyConfirmed && interaction.channel) {
+        try {
+          const lockedEmbed = new EmbedBuilder()
+            .setColor(0x57f287)
+            .setTitle(`🏈 Game Time Locked: Match #${match.id}`)
+            .setDescription(
+              `Both teams have agreed on the scheduled kickoff!\n\n` +
+              `**${match.homeTeam.name}** vs **${match.awayTeam.name}**\n` +
+              `📅 Kickoff: <t:${match.scheduledAt}:F> (<t:${match.scheduledAt}:R>)\n` +
+              `🏟️ Stadium: ${match.homeTeam.stadium?.name || 'TBD'}`
+            )
+            .setFooter({ text: 'College Football League • Schedule Coordination' })
+            .setTimestamp();
+
+          await interaction.channel.send({ embeds: [lockedEmbed] });
+        } catch (err) {
+          logger.warn({ err }, 'could not post schedule lock embed to channel');
+        }
+      }
+      return;
+    }
+
+    if (interaction.customId.startsWith('report_approve:')) {
+      const reportId = Number(interaction.customId.slice('report_approve:'.length));
+      const ctx = buildContext(interaction, app);
+      app.services.permissions.assert(ctx.actor, ctx.settings, Permission.APPROVE_SCORES);
+
+      const report = app.services.matchReports.approveReport({
+        guildDiscordId: interaction.guildId,
+        reportId,
+        actorDiscordId: interaction.user.id,
+      });
+
+      const match = app.services.schedule.getMatch(report.matchId);
+
+      const oldEmbed = interaction.message.embeds?.[0];
+      const updatedEmbed = oldEmbed
+        ? EmbedBuilder.from(oldEmbed)
+            .setColor(0x57f287)
+            .setTitle(`📊 Score Report: Match #${match.id} (Approved)`)
+            .setFooter({ text: `Approved by @${interaction.user.username} • Standings updated` })
+            .setTimestamp()
+        : new EmbedBuilder()
+            .setColor(0x57f287)
+            .setTitle(`📊 Score Report: Match #${match.id} (Approved)`)
+            .setDescription(`Final Score: **${match.homeTeam.abbr} ${report.homeScore}** - **${report.awayScore} ${match.awayTeam.abbr}**`)
+            .setFooter({ text: `Approved by @${interaction.user.username}` });
+
+      await interaction.update({ embeds: [updatedEmbed], components: [] });
+
+      // Post verified score to schedule channel if configured
+      if (ctx.settings.scheduleChannelId && interaction.guild) {
+        try {
+          const schedChannel = interaction.guild.channels.cache.get(ctx.settings.scheduleChannelId);
+          if (schedChannel) {
+            const finalEmbed = new EmbedBuilder()
+              .setColor(0x57f287)
+              .setTitle(`🏆 Official Result: Match #${match.id}`)
+              .setDescription(
+                `**${match.homeTeam.name}** ${report.homeScore} — ${report.awayScore} **${match.awayTeam.name}**\n\n` +
+                `Winner: ${
+                  report.homeScore > report.awayScore
+                    ? `🏆 **${match.homeTeam.name}**`
+                    : report.awayScore > report.homeScore
+                      ? `🏆 **${match.awayTeam.name}**`
+                      : '🤝 Tie'
+                }`
+              )
+              .setFooter({ text: 'College Football League • Final Results' })
+              .setTimestamp();
+            await schedChannel.send({ embeds: [finalEmbed] });
+          }
+        } catch (err) {
+          logger.warn({ err }, 'failed to post final score to schedule channel');
+        }
+      }
+      return;
+    }
+
+    if (interaction.customId.startsWith('report_reject:')) {
+      const reportId = Number(interaction.customId.slice('report_reject:'.length));
+      const ctx = buildContext(interaction, app);
+      app.services.permissions.assert(ctx.actor, ctx.settings, Permission.APPROVE_SCORES);
+
+      const report = app.services.matchReports.rejectReport({
+        guildDiscordId: interaction.guildId,
+        reportId,
+        actorDiscordId: interaction.user.id,
+        reason: 'Rejected by staff via review button',
+      });
+
+      const oldEmbed = interaction.message.embeds?.[0];
+      const updatedEmbed = oldEmbed
+        ? EmbedBuilder.from(oldEmbed)
+            .setColor(0xed4245)
+            .setTitle(`📊 Score Report: Match #${report.matchId} (Rejected)`)
+            .setFooter({ text: `Rejected by @${interaction.user.username}` })
+            .setTimestamp()
+        : new EmbedBuilder()
+            .setColor(0xed4245)
+            .setTitle(`📊 Score Report: Match #${report.matchId} (Rejected)`)
+            .setDescription(`Score report was rejected by staff.`)
+            .setFooter({ text: `Rejected by @${interaction.user.username}` });
+
+      await interaction.update({ embeds: [updatedEmbed], components: [] });
+      return;
+    }
+  }
+
+  async function handleSelectMenu(interaction) {
+    if (interaction.customId === 'help_category_select') {
+      const selectedCategory = interaction.values[0];
+      const { buildHelpEmbed, buildHelpComponents } = await import('./commands/help.js');
+      const embed = buildHelpEmbed(selectedCategory);
+      const components = buildHelpComponents(selectedCategory);
+      await interaction.update({ embeds: [embed], components });
       return;
     }
   }
@@ -259,6 +378,11 @@ export function createInteractionHandler({ app, commands }) {
 
       if (interaction.isButton()) {
         await handleButton(interaction);
+        return;
+      }
+
+      if (interaction.isStringSelectMenu()) {
+        await handleSelectMenu(interaction);
         return;
       }
 

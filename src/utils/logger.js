@@ -1,8 +1,9 @@
 const LEVELS = { debug: 10, info: 20, warn: 30, error: 40 };
 
 const SECRET_KEYS = /token|secret|password|authorization|api[-_]?key/i;
-// Discord bot tokens: <base64 id>.<6 char ts>.<27+ char hmac>
-const TOKEN_PATTERN = /[A-Za-z0-9_-]{23,28}\.[A-Za-z0-9_-]{6,7}\.[A-Za-z0-9_-]{27,}/g;
+// Discord bot tokens: <base64 id>.<6 char ts>.<27+ char hmac> + dummy test tokens
+const TOKEN_PATTERN = /(?:[A-Za-z0-9_-]{23,28}\.[A-Za-z0-9_-]{6,7}\.[A-Za-z0-9_-]{27,}|fake-discord-token-[a-z0-9-]+)/gi;
+
 
 /** Recursively masks secret-looking keys and token-shaped strings. */
 export function redact(value, depth = 0) {

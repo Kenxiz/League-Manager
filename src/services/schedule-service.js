@@ -236,11 +236,12 @@ export class ScheduleService {
     guildDiscordId,
     matchId,
     confirmerDiscordId,
+    userDiscordId,
     side, // 'home' | 'away'
     ignoreConflicts = false,
   }) {
     const guildId = this.guilds.ensure(guildDiscordId);
-    const confirmerId = this.users.ensure(confirmerDiscordId);
+    const confirmerId = this.users.ensure(confirmerDiscordId ?? userDiscordId);
     const match = this.getMatch(matchId);
     if (match.guildId !== guildId) throw new NotFoundError('Match not found in this guild.');
 
