@@ -1,0 +1,54 @@
+{
+  "guildId": "123456789012345678",
+  "guildName": "CFB League",
+  "updatedAt": 1792552530,
+  "channels": {
+    "categoryId": null,
+    "scheduleChannelId": null,
+    "transactionsChannelId": null,
+    "logChannelId": null
+  },
+  "roles": {
+    "suspendedRoleId": "999000000000001001",
+    "commissionerRoleIds": [
+      "999000000000001002"
+    ],
+    "athleticDirectorRoleIds": [
+      "999000000000001003"
+    ],
+    "coachRoleIds": [
+      "999000000000001004"
+    ],
+    "freeAgentRoleId": "999000000000001005",
+    "suspensionAllowedRoleIds": [
+      "999000000000001002"
+    ]
+  },
+  "settings": {
+    "adminRoleIds": [],
+    "commissionerRoleIds": [
+      "999000000000001002"
+    ],
+    "athleticDirectorRoleIds": [
+      "999000000000001003"
+    ],
+    "coachRoleIds": [
+      "999000000000001004"
+    ],
+    "permissionOverrides": {},
+    "signingsOpen": true,
+    "maxTeamsPerUser": 1,
+    "maxUsersPerTeam": 1,
+    "signingCooldownHours": 0,
+    "logChannelId": null,
+    "transactionsChannelId": null,
+    "scheduleChannelId": null,
+    "requireRobloxVerification": false,
+    "requireGroupJoin": false,
+    "suspensionAllowedRoleIds": [
+      "999000000000001002"
+    ],
+    "suspendedRoleId": "999000000000001001",
+    "freeAgentRoleId": "999000000000001005"
+  }
+}

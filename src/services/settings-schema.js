@@ -16,6 +16,8 @@ export const settingsSchema = z.strictObject({
   // Role -> tier mapping (see PermissionService)
   adminRoleIds: roleList,
   commissionerRoleIds: roleList,
+  /** Role designated for team owners / Athletic Directors to coordinate and confirm match times. */
+  athleticDirectorRoleIds: roleList,
   /** Empty = every member counts as a coach (open league). */
   coachRoleIds: roleList,
 
@@ -39,7 +41,22 @@ export const settingsSchema = z.strictObject({
   // Channels (optional; features that post messages read these)
   logChannelId: snowflake.nullable().default(null),
   transactionsChannelId: snowflake.nullable().default(null),
+  scheduleChannelId: snowflake.nullable().default(null),
+
+  // Verification & integrations
+  requireRobloxVerification: z.boolean().default(false),
+  requireGroupJoin: z.boolean().default(false),
+
+  // Administration & Suspensions
+  /** Roles allowed to use the suspension panel/command (configured in dashboard or settings). */
+  suspensionAllowedRoleIds: roleList,
+  /** Discord snowflake ID of the @Suspended role (auto-created during setup if missing). */
+  suspendedRoleId: snowflake.nullable().default(null),
+  /** Discord snowflake ID of the @Free Agent role (given to all members on join or during setup). */
+  freeAgentRoleId: snowflake.nullable().default(null),
 });
+
+
 
 /** @typedef {z.infer<typeof settingsSchema>} GuildSettings */
 

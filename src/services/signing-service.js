@@ -23,8 +23,9 @@ import { nowSec } from '../utils/helpers.js';
  * `force: true` skips *league rules* (signings open, limits, cooldown), not validation.
  */
 export class SigningService {
-  constructor({ db, guilds, users, teams, seasons, audit, clock = nowSec }) {
-    Object.assign(this, { db, guilds, users, teams, seasons, audit, clock });
+  constructor({ db, guilds, users, teams, seasons, audit, bans, verification, suspensions, clock = nowSec }) {
+    Object.assign(this, { db, guilds, users, teams, seasons, audit, bans, verification, suspensions, clock });
+
     this.q = {
       liveByUser: db.prepare(
         'SELECT id, team_id, season_id, signed_at FROM signings WHERE guild_id = ? AND user_id = ? AND ended_at IS NULL',
@@ -206,6 +207,23 @@ export class SigningService {
     const { guildId, userId, actorId, settings } = ctx;
 
     if (!this.teams.isEnabled(guildId, team.id)) throw new ConflictError(`${team.name} is not available in this server.`);
+
+    if (this.bans?.isBanned(guildId, userId)) {
+      throw new ConflictError('That user is banned from signing in this server.');
+    }
+
+    if (this.suspensions?.isSuspended(guildId, userId)) {
+      throw new ConflictError('That user is suspended in this server and cannot sign.');
+    }
+
+
+    if (settings.requireRobloxVerification && this.verification) {
+      const userDiscordId = this.users.discordId(userId);
+      const link = this.verification.getLink(userDiscordId);
+      if (!link) {
+        throw new ConflictError('You must link your Roblox account before signing to a team.');
+      }
+    }
 
     if (!force) {
       if (!settings.signingsOpen) throw new ConflictError('Signings are currently closed.');

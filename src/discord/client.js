@@ -9,13 +9,14 @@ import { Client, GatewayIntentBits, Options, Partials } from 'discord.js';
  */
 export function createClient() {
   return new Client({
-    intents: [GatewayIntentBits.Guilds],
-    partials: [Partials.Channel],
+    intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers],
+    partials: [Partials.Channel, Partials.GuildMember],
     allowedMentions: { parse: [], repliedUser: false },
     makeCache: Options.cacheWithLimits({
       ...Options.DefaultMakeCacheSettings,
       MessageManager: 0,
-      GuildMemberManager: 0,
+      GuildMemberManager: 200,
+
       PresenceManager: 0,
       ReactionManager: 0,
       GuildMessageManager: 0,

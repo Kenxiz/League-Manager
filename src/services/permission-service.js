@@ -71,17 +71,42 @@ export class PermissionService {
     );
   }
 
+  /** Checks whether the actor is authorized to use the suspension panel/command. */
+  canSuspend(actor, settings) {
+    if (actor.isBotOwner || actor.isGuildOwner || actor.isDiscordAdmin) return true;
+    const roles = new Set(actor.roleIds ?? []);
+    if (settings.adminRoleIds?.some((id) => roles.has(id))) return true;
+    if (settings.suspensionAllowedRoleIds && settings.suspensionAllowedRoleIds.length > 0) {
+      return settings.suspensionAllowedRoleIds.some((id) => roles.has(id));
+    }
+    return this.resolve(actor, settings).has(Permission.SUSPEND_USERS);
+  }
+
+  assertCanSuspend(actor, settings, message) {
+    if (!this.canSuspend(actor, settings)) {
+      throw new PermissionError(message ?? 'You do not have permission to use the suspensions panel.');
+    }
+    return true;
+  }
+
   /**
    * Which permission a settings patch requires. Anything touching who-has-power (roles, tier
    * masks) needs MANAGE_PERMISSIONS; the rest needs MANAGE_SETTINGS.
    */
   requiredForSettingsPatch(patch) {
-    const powerKeys = ['adminRoleIds', 'commissionerRoleIds', 'coachRoleIds', 'permissionOverrides'];
+    const powerKeys = [
+      'adminRoleIds',
+      'commissionerRoleIds',
+      'coachRoleIds',
+      'permissionOverrides',
+      'suspensionAllowedRoleIds',
+    ];
     return Object.keys(patch).some((k) => powerKeys.includes(k))
       ? Permission.MANAGE_PERMISSIONS
       : Permission.MANAGE_SETTINGS;
   }
 }
+
 
 export function describe(mask) {
   return PERMISSION_NAMES.filter(([, bit]) => (mask & bit) === bit && bit !== 0)

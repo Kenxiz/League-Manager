@@ -23,6 +23,8 @@ const schema = z.object({
   ROBLOX_THUMBNAILS_BASE: z.string().url().default('https://thumbnails.roblox.com/v1'),
   HTTP_TIMEOUT_MS: z.coerce.number().int().min(500).max(60000).default(10000),
   HTTP_MAX_RETRIES: z.coerce.number().int().min(0).max(8).default(3),
+  API_PORT: z.coerce.number().int().min(0).max(65535).default(3001),
+  API_KEY: optional(z.string().min(8)),
 });
 
 /**
@@ -64,6 +66,10 @@ export function loadConfig(env = process.env, { requireDiscord = true } = {}) {
       timeoutMs: e.HTTP_TIMEOUT_MS,
       maxRetries: e.HTTP_MAX_RETRIES,
       robloxThumbnailsBase: e.ROBLOX_THUMBNAILS_BASE.replace(/\/+$/, ''),
+    }),
+    api: Object.freeze({
+      port: e.API_PORT,
+      apiKey: e.API_KEY,
     }),
   });
 }

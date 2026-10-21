@@ -6,6 +6,7 @@ import { createClient } from './discord/client.js';
 import { loadCommands } from './discord/command-loader.js';
 import { createInteractionHandler } from './discord/interaction-handler.js';
 import { createEvents } from './discord/events.js';
+import { createApiServer } from './api/server.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -18,9 +19,10 @@ async function main() {
   const integrations = createIntegrations({ config, logger });
   const commands = await loadCommands();
   const client = createClient();
+  const api = createApiServer({ services, config, logger });
 
   /** Shared application context handed to every command/event. */
-  const app = { config, logger, services, integrations, client, commands };
+  const app = { config, logger, services, integrations, client, commands, api };
 
   const handleInteraction = createInteractionHandler({ app, commands });
   for (const ev of createEvents({ app, handleInteraction })) {
@@ -55,6 +57,7 @@ async function main() {
     clearInterval(daily);
     clearTimeout(boot);
     try {
+      await api.close();
       await client.destroy();
       services.close();
     } finally {
@@ -69,6 +72,7 @@ async function main() {
     shutdown('uncaughtException');
   });
 
+  await api.listen(config.api.port);
   await client.login(config.discord.token);
 }
 

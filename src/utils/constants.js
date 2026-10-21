@@ -21,11 +21,47 @@ export const AuditAction = Object.freeze({
   SETTINGS_UPDATE: 6,
   TEAM_TOGGLE: 7,
   GUILD_RESET: 8,
+  MATCH_CREATE: 9,
+  MATCH_UPDATE: 10,
+  MATCH_REPORT: 11,
+  MATCH_APPROVE: 12,
+  CAPTAIN_ASSIGN: 13,
+  CAPTAIN_REMOVE: 14,
+  TEAM_LINK_UPDATE: 15,
+  ROBLOX_LINK: 16,
+  ROBLOX_UNLINK: 17,
+  USER_BAN: 18,
+  USER_UNBAN: 19,
+  USER_SUSPEND: 20,
+  USER_UNSUSPEND: 21,
 });
+
+/** Bot developers with reserved authority for permanent bans. */
+export const DEVELOPER_IDS = Object.freeze(['341223005017604116', '1301187757737246804']);
 
 export const AuditActionName = Object.freeze(
   Object.fromEntries(Object.entries(AuditAction).map(([k, v]) => [v, k.toLowerCase()])),
 );
+
+/** Match lifecycle statuses. */
+export const MatchStatus = Object.freeze({
+  SCHEDULED: 1,
+  IN_PROGRESS: 2,
+  COMPLETED: 3,
+  CANCELLED: 4,
+  FORFEITED: 5,
+});
+
+export const MatchStatusName = Object.freeze(
+  Object.fromEntries(Object.entries(MatchStatus).map(([k, v]) => [v, k.toLowerCase()])),
+);
+
+/** Score report workflow statuses. */
+export const ReportStatus = Object.freeze({
+  PENDING: 1,
+  APPROVED: 2,
+  REJECTED: 3,
+});
 
 /**
  * Permission bit flags. A user's effective permissions are the OR of the flags granted
@@ -42,6 +78,12 @@ export const Permission = Object.freeze({
   MANAGE_SETTINGS: 1 << 7,
   VIEW_AUDIT: 1 << 8,
   MANAGE_PERMISSIONS: 1 << 9, // change role->tier mapping & tier masks
+  MANAGE_SCHEDULE: 1 << 10, // create/edit match schedules
+  REPORT_SCORES: 1 << 11, // report match scores
+  APPROVE_SCORES: 1 << 12, // verify and confirm match reports
+  MANAGE_CAPTAINS: 1 << 13, // assign/remove team captains
+  MODERATE_USERS: 1 << 14, // ban/unban players from league
+  SUSPEND_USERS: 1 << 15, // suspend/unsuspend players with bail
 });
 
 export const ALL_PERMISSIONS = Object.values(Permission).reduce((a, b) => a | b, 0);
@@ -58,7 +100,11 @@ export const TIER_ORDER = Object.freeze([Tier.MEMBER, Tier.COACH, Tier.COMMISSIO
 /** Default permission mask for each tier (guilds can override per tier via settings). */
 export const DEFAULT_TIER_PERMISSIONS = Object.freeze({
   [Tier.MEMBER]: Permission.VIEW,
-  [Tier.COACH]: Permission.VIEW | Permission.SIGN_SELF | Permission.RELEASE_SELF,
+  [Tier.COACH]:
+    Permission.VIEW |
+    Permission.SIGN_SELF |
+    Permission.RELEASE_SELF |
+    Permission.REPORT_SCORES,
   [Tier.COMMISSIONER]:
     Permission.VIEW |
     Permission.SIGN_SELF |
@@ -67,6 +113,13 @@ export const DEFAULT_TIER_PERMISSIONS = Object.freeze({
     Permission.RELEASE_OTHERS |
     Permission.MANAGE_TEAMS |
     Permission.MANAGE_SEASONS |
-    Permission.VIEW_AUDIT,
+    Permission.VIEW_AUDIT |
+    Permission.MANAGE_SCHEDULE |
+    Permission.REPORT_SCORES |
+    Permission.APPROVE_SCORES |
+    Permission.MANAGE_CAPTAINS |
+    Permission.MODERATE_USERS |
+    Permission.SUSPEND_USERS,
   [Tier.ADMIN]: ALL_PERMISSIONS,
 });
+
