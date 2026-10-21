@@ -1,0 +1,25 @@
+{
+  "name": "leaguebot",
+  "version": "0.1.0",
+  "description": "Multi-guild Discord bot for signing coaches/players to College Football league teams.",
+  "type": "module",
+  "main": "src/index.js",
+  "private": true,
+  "engines": {
+    "node": ">=20.12"
+  },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env src/index.js",
+    "dev": "node --watch --env-file-if-exists=.env src/index.js",
+    "deploy": "node --env-file-if-exists=.env scripts/deploy-commands.js",
+    "migrate": "node --env-file-if-exists=.env scripts/migrate.js",
+    "seed:teams": "node --env-file-if-exists=.env scripts/seed-teams.js",
+    "maintenance": "node --env-file-if-exists=.env scripts/maintenance.js",
+    "test": "node --test \"test/**/*.test.js\""
+  },
+  "dependencies": {
+    "better-sqlite3": "^13.0.3",
+    "discord.js": "^14.27.0",
+    "zod": "^4.6.7"
+  }
+}
